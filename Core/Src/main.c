@@ -86,9 +86,9 @@ uint32_t AdcGetValue(void);
 double AdcGetVoltGen(void);
 double AdcGetVolt(void);
 uint32_t VDacSetVolt(float volt);
-void VDacSet(uint32_t data);
+void VDacSet(uint16_t data);
 uint32_t CDacSetVolt(float volt);
-void CDacSet(uint32_t data);
+void CDacSet(uint16_t data);
 
 void Ps1On(void);
 void Ps1Off(void);
@@ -544,11 +544,23 @@ void PowerControlTask(PowerCtrl_Type *ctrl)
 void UpTimeIncrementTask(void)
 {
   static int32_t timestamp = 0;
+//  char string[80];
 
   if((HAL_GetTick() - timestamp) >= 1000)
   {
     timestamp = HAL_GetTick();
     Device.UpTimeSec++;
+
+//    SwitchesSet(BSP_RY1_MASK); /*** RANGE 5OHM ***/
+//    VDacSetVolt(2.5);
+//    CDacSetVolt(2.5);
+//
+//    uint32_t temp = AdcGetValue();
+//    sprintf(string, "0x%lX\r\n", temp);
+//    ConsoleWrite(string);
+//
+//    sprintf(string, "%f\r\n", AdcGetVolt());
+//    ConsoleWrite(string);
   }
 }
 
@@ -875,7 +887,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -1134,54 +1146,9 @@ uint8_t SelectorGet(void)
   return Device.SwitchesState;
 }
 
-void SwitchesUpdate(uint8_t value)
-{
-  uint8_t mask = 0x80;
-  for(uint8_t i=0; i < 8; i++)
-  {
-    if(value & mask)
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
-    else
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-    mask>>=1;
-    /* SPI Clock  L->H->L*/
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
-  }
-  /*ADS_LD# -> Load/Write */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
-}
-
-uint32_t AdcGetValue(void)
-{
-  uint32_t retval = 0;
-  uint32_t mask = 0x80000000;
-  /*ADC_CS# -> Select*/
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 
 
-  for(uint8_t j = 0; j < 32; j++)
-  {
-    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_SET)
-    {
-      DelayUs(10);
-      retval|= mask;
-    }
-    else
-    {
-      retval&=~mask;
-    }
-    mask >>=1;
-    /* SPI Clock  L->H->L*/
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
-    DelayUs(10);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
-  }
-  /*ADC_CS# -> DeSelect*/
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-  return retval;
-}
+
 
 double AdcGetVoltGen(void)
 {
@@ -1264,36 +1231,6 @@ uint32_t VDacSetVolt(float volt)
 return code;
 }
 
-void VDacSet(uint32_t data)
-{
-/*
- * VREF x (1/65,536) = 0xFFFF
- * VREF x (1/65,536) = 0x800 => 0.5*VREF
- * VREF x (1/65,536)
-*/
-  uint32_t mask = 0x8000;
-  /*VPROG_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
-  for(uint8_t i=0; i < 16; i++)
-  {
-    if(data & mask)
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
-    else
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-    mask>>=1;
-    /* SPI Clock  L->H->L*/
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
-  }
-  /*VPROG_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
-  /* DAC Load  H->L->H*/
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
-}
-
-
-
 uint32_t CDacSetVolt(float volt)
 {
   uint32_t code = volt /(BSP_VREF/65536);
@@ -1305,47 +1242,83 @@ uint32_t CDacSetVolt(float volt)
 return code;
 }
 
-void CDacSet(uint32_t data)
+void SwitchesUpdate(uint8_t data)
 {
-  uint32_t mask = 0x8000;
-  /*CPROG_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
-  for(uint8_t i=0; i < 16; i++)
-  {
-    if(data & mask)
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
-    else
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-    mask>>=1;
-    /* SPI Clock  L->H->L*/
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
-  }
-  /*CPROG_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-  /* DAC Load  H->L->H*/
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+  uint8_t dummy[sizeof(data)];
+  memset(dummy,0x00,sizeof(data));
+  HAL_SPI_TransmitReceive(&hspi2, (uint8_t*)&data, dummy, sizeof(data), 100);
+  HAL_GPIO_WritePin(ADS_LD_GPIO_Port, ADS_LD_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(ADS_LD_GPIO_Port, ADS_LD_Pin, GPIO_PIN_RESET);
 }
 
-void SetVtrim(uint16_t data)
+uint32_t AdcGetValue(void)
 {
-  uint32_t mask = 0x8000;
-  /*VTRIM_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
-  for(uint8_t i=0; i < 16; i++)
-  {
-    if(data & mask)
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
-    else
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET);
-    mask>>=1;
-    /* SPI Clock  L->H->L*/
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);
-  }
-  /*VTRIM_EN# -> Select */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
+  uint32_t retval = 0;
+  uint8_t i,j;
+  uint8_t dummy[sizeof(retval)];
+  uint8_t temp[sizeof(retval)], reverse[sizeof(retval)];
+  memset(dummy,0x00,sizeof(retval));
+
+  HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_RESET);
+  HAL_SPI_TransmitReceive(&hspi2, dummy, temp, sizeof(retval), 100);
+  HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+
+  j = sizeof(temp)-1;
+  for(i=0; i  <sizeof(temp); i++)
+    reverse[j--] = *(temp + i);
+
+  return *((uint32_t*)&reverse);
+}
+
+void VDacSet(uint16_t data)
+{
+
+/*
+ * VREF x (1/65,536) = 0xFFFF
+ * VREF x (1/65,536) = 0x8000 => 0.5*VREF
+ * VREF x (1/65,536)
+*/
+  uint8_t i,j;
+  uint8_t reverse[sizeof(data)];
+  uint8_t dummy[sizeof(data)];
+  memset(dummy,0x00,sizeof(data));
+
+  uint8_t  *ptr = (uint8_t *)&data;
+  j = sizeof(data)-1;
+  for(i=0; i<sizeof(data); i++)
+    reverse[j--] = *(ptr + i);
+
+  /*VPROG_EN# -> Select */
+  HAL_GPIO_WritePin(VPRG_EN_GPIO_Port, VPRG_EN_Pin, GPIO_PIN_RESET);
+  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, sizeof(data), 100);
+  /*VPROG_EN# -> Select */
+  HAL_GPIO_WritePin(VPRG_EN_GPIO_Port, VPRG_EN_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(VPRG_LD_GPIO_Port, VPRG_LD_Pin, GPIO_PIN_RESET);
+  /* DAC Load  H->L->H*/
+  HAL_GPIO_WritePin(VPRG_LD_GPIO_Port, VPRG_LD_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(VPRG_LD_GPIO_Port, VPRG_LD_Pin, GPIO_PIN_SET);
+}
+
+void CDacSet(uint16_t data)
+{
+  uint8_t i,j;
+  uint8_t reverse[sizeof(data)];
+  uint8_t dummy[sizeof(data)];
+  memset(dummy,0x00,sizeof(data));
+
+  uint8_t  *ptr = (uint8_t*)&data;
+  j = sizeof(data)-1;
+  for(i=0; i<sizeof(data); i++)
+    reverse[j--] = *(ptr + i);
+
+  /*CPROG_EN# -> Select */
+  HAL_GPIO_WritePin(CPRG_EN_GPIO_Port, CPRG_EN_Pin, GPIO_PIN_RESET);
+  HAL_SPI_TransmitReceive(&hspi2, reverse, dummy, sizeof(data), 100);
+  /*CPROG_EN# -> Select */
+  HAL_GPIO_WritePin(CPRG_EN_GPIO_Port, CPRG_EN_Pin, GPIO_PIN_SET);
+  /* DAC Load  H->L->H*/
+  HAL_GPIO_WritePin(CPRG_LD_GPIO_Port, CPRG_LD_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(CPRG_LD_GPIO_Port, CPRG_LD_Pin, GPIO_PIN_SET);
 }
 
 /* printf -------------------------------------------------------------------*/
@@ -1395,22 +1368,22 @@ void LedRedOff(void)
 /* PS ---------------------------------------------------------------------*/
 void Ps1On(void)
 {
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(PS1ON_GPIO_Port, PS1ON_Pin, GPIO_PIN_SET);
 }
 
 void Ps1Off(void)
 {
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(PS1ON_GPIO_Port, PS1ON_Pin, GPIO_PIN_RESET);
 }
 
 void Ps2On(void)
 {
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(PS2ON_GPIO_Port, PS2ON_Pin, GPIO_PIN_SET);
 }
 
 void Ps2Off(void)
 {
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(PS2ON_GPIO_Port, PS2ON_Pin, GPIO_PIN_RESET);
 }
 
 /* MCP9800 -----------------------------------------------------------*/

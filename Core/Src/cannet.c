@@ -139,7 +139,7 @@ uint8_t CanNetReadMsgLowLevel(CanNet_Type *context, uint32_t arbId, uint8_t *dat
 uint8_t CanNetSendSignal(CanNet_Type *context, uint8_t node, uint8_t broadcast, uint8_t msgId, void *pValue)
 {
   uint8_t isFoundSignal;
-  uint8_t status = CANNET_OK;
+//  uint8_t status = CANNET_OK;
 
   uint8_t data[CANNET_CAN_MSG_SIZE];
   size_t size;
