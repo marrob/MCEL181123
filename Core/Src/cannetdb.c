@@ -8,7 +8,7 @@ CanNetMessageItem_Type Messages[] =
   /*01234567890123456                                                                                                                          */
   { "MSG_MCEL_V_MEAS",     MSG_MCEL_V_MEAS,   NODE_MCEL,    0,        0,           NULL,                 &Device.PowerCtrl.CVmeas,       CANNET_FLOAT        },
   { "MSG_MCEL_C_MEAS",     MSG_MCEL_C_MEAS,   NODE_MCEL,    0,        0,           NULL,                 &Device.PowerCtrl.CCmeas,       CANNET_FLOAT        },
-  { "MSG_MCEL_RANGE",      MSG_MCEL_RANGE,    NODE_MCEL,    0,        0,           NULL,                 &Device.PowerCtrl.Range,        CANNET_U8           },
+  { "MSG_MCEL_RANGE",      MSG_MCEL_RANGE,    NODE_MCEL,    1,        500,           NULL,               &Device.PowerCtrl.Range,        CANNET_U8           },
   { "MSG_MCEL_OFFSET",     MSG_MCEL_OFFSET,   NODE_MCEL,    0,        0,           NULL,                 &Device.PowerCtrl.CCoffset,     CANNET_FLOAT        },
   { "MSG_MCEL_TEMP_TR",    MSG_MCEL_TEMP_TR,  NODE_MCEL,    0,        0,           NULL,                 &Device.TransistorTemp,         CANNET_FLOAT        },
   { "MSG_MCEL_TEMP_UC",    MSG_MCEL_TEMP_UC,  NODE_MCEL,    0,        0,           NULL,                 &Device.ControllerTemp,         CANNET_U32,         },

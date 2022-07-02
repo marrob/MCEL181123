@@ -131,7 +131,6 @@ typedef enum _DebugState_Type
 
 typedef struct _AppTypeDef
 {
- // CAN_HandleTypeDef Handle;
   PowerCtrl_Type PowerCtrl;
   CanNet_Type CanNet;
   ADC_HandleTypeDef Adc;

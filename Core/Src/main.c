@@ -648,6 +648,8 @@ int main(void)
 
   Device.PowerCtrl.OE = MCEL_OE_TYPE_ON;
 
+  CalibrationOff();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
